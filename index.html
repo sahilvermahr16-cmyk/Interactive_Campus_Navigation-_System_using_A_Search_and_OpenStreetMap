@@ -1,503 +1,730 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Interactive Route Planner</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <style>
-        body {
-            font-family: 'Inter', sans-serif;
-            overflow: hidden;
-        }
-        canvas {
-            cursor: crosshair;
-            touch-action: none;
-        }
-        .loader {
-            border: 8px solid #f3f3f3;
-            border-top: 8px solid #3498db;
-            border-radius: 50%;
-            width: 60px;
-            height: 60px;
-            animation: spin 1s linear infinite;
-        }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-    </style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>IIT KGP Map — Full</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    html,body { height:100%; margin:0; font-family:Inter,Roboto,Arial,sans-serif; overflow:hidden; }
+    #mapCanvas { display:block; background:#e5e3df; cursor:crosshair; touch-action:none; width:100%; height:100%; }
+    canvas.grabbing { cursor:grabbing !important; }
+    .controls {
+      position: absolute; top:12px; left:50%; transform:translateX(-50%); z-index:60;
+      display:flex; gap:8px; align-items:center;
+    }
+    .controls .card { background: #fff; padding:8px 12px; border-radius:12px; box-shadow:0 6px 18px rgba(9,10,11,0.12); display:flex; gap:8px; align-items:center; }
+    .statusBox { position:absolute; bottom:14px; left:14px; z-index:60; }
+    .statusCard { background:#fff; padding:8px 12px; border-radius:10px; box-shadow:0 6px 18px rgba(9,10,11,0.12); font-size:13px; color:#1f2937; }
+    input.search { width:360px; padding:8px 10px; border-radius:8px; border:1px solid #e5e7eb; outline:none }
+    .resultList { max-height:240px; overflow:auto; margin-top:6px; border-radius:8px; }
+    .resultItem { padding:8px; border-bottom:1px solid #eef2f7; cursor:pointer; }
+    .resultItem:hover { background:#f1f5f9; }
+  </style>
 </head>
-<body class="bg-gray-900 text-white flex flex-col h-screen antialiased">
+<body class="bg-gray-100">
+  <!-- Floating controls -->
+  <div class="controls">
+    <div class="card">
+      <label class="bg-blue-600 text-white px-3 py-2 rounded-md cursor-pointer">
+        Load OSM
+        <input id="file-upload" type="file" accept=".osm,.xml" style="display:none">
+      </label>
+      <button id="btn-load-default" class="bg-gray-800 text-white px-3 py-2 rounded-md">Load default (map.osm)</button>
+      <button id="reset-button" class="bg-red-500 text-white px-3 py-2 rounded-md">Reset</button>
+    </div>
 
-    <!-- Header -->
-    <header class="bg-gray-800 shadow-lg z-10">
-        <div class="container mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex items-center justify-between h-16">
-                <h1 class="text-2xl font-bold text-white">Route Planner</h1>
-                <div class="flex items-center space-x-4">
-                    <label for="file-upload" class="relative cursor-pointer bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg shadow-md transition-transform transform hover:scale-105">
-                        <span>Load map.osm File</span>
-                        <input id="file-upload" name="file-upload" type="file" class="sr-only" accept=".osm">
-                    </label>
-                    <button id="reset-button" class="bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded-lg shadow-md transition-transform transform hover:scale-105">Reset</button>
-                </div>
-            </div>
-        </div>
-    </header>
+    <div class="card">
+      <input id="searchInput" class="search" placeholder="Search place or road (local & online)" />
+      <button id="searchBtn" class="bg-blue-600 text-white px-3 py-2 rounded-md">Search</button>
+    </div>
+  </div>
 
-    <!-- Main Content -->
-    <main class="flex-grow flex items-stretch overflow-hidden">
-        <!-- Sidebar -->
-        <aside class="w-full sm:w-80 bg-gray-800 p-6 flex-shrink-0 overflow-y-auto">
-            <h2 class="text-xl font-semibold mb-4 border-b border-gray-700 pb-2">Instructions</h2>
-            <div id="instructions" class="space-y-4 text-gray-300">
-                <div class="flex items-start">
-                    <div class="flex-shrink-0 h-6 w-6 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold mr-3">1</div>
-                    <p>Click "Load map.osm File" to load your map data.</p>
-                </div>
-                 <div class="flex items-start">
-                    <div class="flex-shrink-0 h-6 w-6 rounded-full bg-gray-600 text-white flex items-center justify-center font-bold mr-3">2</div>
-                    <p>Click anywhere on the map to set the **start point**.</p>
-                </div>
-                 <div class="flex items-start">
-                    <div class="flex-shrink-0 h-6 w-6 rounded-full bg-gray-600 text-white flex items-center justify-center font-bold mr-3">3</div>
-                    <p>Click a second time to set the **end point** and find the path.</p>
-                </div>
-            </div>
-            <div id="status" class="mt-6 text-lg font-medium text-yellow-400"></div>
-            <div id="results" class="mt-4 text-gray-300 space-y-2 hidden">
-                <p><span class="font-semibold text-white">Distance:</span> <span id="distance"></span> meters</p>
-            </div>
-            <div id="loading" class="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center hidden z-50">
-                <div class="text-center">
-                    <div class="loader mx-auto"></div>
-                    <p class="mt-4 text-xl font-semibold">Parsing Map Data...</p>
-                </div>
-            </div>
-        </aside>
+  <!-- status -->
+  <div class="statusBox">
+    <div class="statusCard">
+      <div id="status">Load a map file to begin.</div>
+      <div id="results" style="display:none; margin-top:6px">Distance: <span id="distance">0</span> m</div>
+    </div>
+  </div>
 
-        <!-- Canvas -->
-        <div class="flex-grow bg-gray-700 flex items-center justify-center relative overflow-hidden">
-            <canvas id="map-canvas" class="bg-gray-200 rounded-lg shadow-inner"></canvas>
-        </div>
-    </main>
+  <!-- canvas -->
+  <canvas id="mapCanvas"></canvas>
 
-    <script>
-        // --- DOM Elements ---
-        const canvas = document.getElementById('map-canvas');
-        const ctx = canvas.getContext('2d');
-        const fileUpload = document.getElementById('file-upload');
-        const resetButton = document.getElementById('reset-button');
-        const statusEl = document.getElementById('status');
-        const resultsEl = document.getElementById('results');
-        const distanceEl = document.getElementById('distance');
-        const loadingEl = document.getElementById('loading');
-        const instructionSteps = document.querySelectorAll('#instructions > div');
+  <!-- search popup -->
+  <div id="searchPopup" style="position:absolute; top:64px; left:50%; transform:translateX(-50%); z-index:70; display:none;">
+    <div class="card" style="flex-direction:column; max-width:480px;">
+      <div style="font-weight:600; margin-bottom:6px">Search results</div>
+      <div id="localResults" class="resultList"></div>
+      <div id="remoteResults" class="resultList"></div>
+      <div style="text-align:right; margin-top:6px">
+        <button id="closeSearch" class="px-3 py-1 rounded bg-gray-200">Close</button>
+      </div>
+    </div>
+  </div>
 
-        // --- App State ---
-        let model = null;
-        let startPoint = null;
-        let endPoint = null;
-        let path = [];
-        
-        // --- Canvas Panning and Zooming State ---
-        let transform = { x: 0, y: 0, scale: 1 };
-        let isPanning = false;
-        let panStart = { x: 0, y: 0 };
+<script>
+/* ------------------------------
+   DOM & State
+   ------------------------------ */
+const canvas = document.getElementById('mapCanvas');
+const ctx = canvas.getContext('2d');
 
-        // --- A* Node Class ---
-        class Node {
-            constructor(id, x, y) {
-                this.id = id;
-                this.x = x;
-                this.y = y;
-                this.parent = null;
-                this.neighbors = [];
-                this.g = Infinity; // Distance from start
-                this.h = 0;        // Heuristic distance to end
-                this.f = Infinity; // g + h
-            }
+const fileUpload = document.getElementById('file-upload');
+const btnLoadDefault = document.getElementById('btn-load-default');
+const resetButton = document.getElementById('reset-button');
+const statusEl = document.getElementById('status');
+const resultsEl = document.getElementById('results');
+const distanceEl = document.getElementById('distance');
 
-            distanceTo(otherNode) {
-                return Math.sqrt(Math.pow(this.x - otherNode.x, 2) + Math.pow(this.y - otherNode.y, 2));
-            }
+const searchInput = document.getElementById('searchInput');
+const searchBtn = document.getElementById('searchBtn');
+const searchPopup = document.getElementById('searchPopup');
+const localResultsEl = document.getElementById('localResults');
+const remoteResultsEl = document.getElementById('remoteResults');
+const closeSearch = document.getElementById('closeSearch');
+
+let model = null;        // RouteModel
+let startNode = null;
+let endNode = null;
+let path = [];
+
+// view transform
+let view = { x: 0, y: 0, scale: 1 };
+
+// pointer state for pan + click
+let pointerDown = false;
+let pointerStart = { x: 0, y: 0 };
+let viewStart = { x: 0, y: 0, scale: 1 };
+let pointerMoved = false;
+const CLICK_MOVE_THRESHOLD = 6; // px
+
+/* ------------------------------
+   Haversine helper
+   ------------------------------ */
+const R = 6371e3;
+function haversine(lat1, lon1, lat2, lon2){
+  const φ1 = lat1 * Math.PI/180, φ2 = lat2 * Math.PI/180;
+  const dφ = (lat2 - lat1) * Math.PI/180;
+  const dλ = (lon2 - lon1) * Math.PI/180;
+  const a = Math.sin(dφ/2)**2 + Math.cos(φ1)*Math.cos(φ2)*Math.sin(dλ/2)**2;
+  return 2 * R * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+/* ------------------------------
+   Node & RouteModel
+   ------------------------------ */
+class Node {
+  constructor(id, lon, lat){
+    this.id = id;
+    this.x = lon; this.y = lat;
+    this.neighbors = []; this.reset();
+    this.name = null;
+  }
+  reset(){ this.g = Infinity; this.h = 0; this.f = Infinity; this.parent = null; }
+  distanceTo(other){ return haversine(this.y, this.x, other.y, other.x); }
+}
+
+class RouteModel {
+  constructor(xmlText){
+    this.nodes = new Map();
+    this.ways = [];
+    this.bounds = { minLat: Infinity, maxLat: -Infinity, minLon: Infinity, maxLon: -Infinity };
+    this.nameIndex = new Map();
+    this.parseOSM(xmlText);
+    this.ensureBounds();
+    this.buildNameIndex();
+  }
+
+  parseOSM(xmlText){
+    const p = new DOMParser();
+    const doc = p.parseFromString(xmlText, 'application/xml');
+
+    const b = doc.querySelector('bounds');
+    if (b){
+      this.bounds.minLat = parseFloat(b.getAttribute('minlat'));
+      this.bounds.maxLat = parseFloat(b.getAttribute('maxlat'));
+      this.bounds.minLon = parseFloat(b.getAttribute('minlon'));
+      this.bounds.maxLon = parseFloat(b.getAttribute('maxlon'));
+    }
+
+    doc.querySelectorAll('node').forEach(n => {
+      const id = n.getAttribute('id');
+      const lat = parseFloat(n.getAttribute('lat'));
+      const lon = parseFloat(n.getAttribute('lon'));
+      const nodeObj = new Node(id, lon, lat);
+      // name tag if present
+      const nameTag = Array.from(n.querySelectorAll('tag')).find(t => (t.getAttribute('k')||'').toLowerCase() === 'name');
+      if (nameTag) nodeObj.name = nameTag.getAttribute('v');
+      this.nodes.set(id, nodeObj);
+    });
+
+    doc.querySelectorAll('way').forEach(w => {
+      const nds = Array.from(w.querySelectorAll('nd')).map(nd => nd.getAttribute('ref'));
+      const tags = {};
+      w.querySelectorAll('tag').forEach(t => { tags[t.getAttribute('k')] = t.getAttribute('v'); });
+      this.ways.push({ nodes: nds, tags });
+
+      // build routing graph using highways
+      if (tags.highway){
+        for (let i=0;i<nds.length-1;i++){
+          const n1 = this.nodes.get(nds[i]);
+          const n2 = this.nodes.get(nds[i+1]);
+          if (n1 && n2){
+            if (!n1.neighbors.includes(n2)) n1.neighbors.push(n2);
+            if (!n2.neighbors.includes(n1)) n2.neighbors.push(n1);
+          }
         }
+      }
+    });
+  }
 
-        // --- Map Model Class ---
-        class RouteModel {
-            constructor(xmlText) {
-                this.nodes = new Map();
-                this.ways = [];
-                this.bounds = { minLat: Infinity, maxLat: -Infinity, minLon: Infinity, maxLon: -Infinity };
-                this.parseOSM(xmlText);
-            }
+  ensureBounds(){
+    if (this.bounds.minLat !== Infinity) return;
+    for (const n of this.nodes.values()){
+      this.bounds.minLat = Math.min(this.bounds.minLat, n.y);
+      this.bounds.maxLat = Math.max(this.bounds.maxLat, n.y);
+      this.bounds.minLon = Math.min(this.bounds.minLon, n.x);
+      this.bounds.maxLon = Math.max(this.bounds.maxLon, n.x);
+    }
+  }
 
-            parseOSM(xmlText) {
-                const parser = new DOMParser();
-                const xmlDoc = parser.parseFromString(xmlText, "application/xml");
-                
-                // Parse bounds
-                const boundsEl = xmlDoc.querySelector('bounds');
-                if (boundsEl) {
-                    this.bounds.minLat = parseFloat(boundsEl.getAttribute('minlat'));
-                    this.bounds.maxLat = parseFloat(boundsEl.getAttribute('maxlat'));
-                    this.bounds.minLon = parseFloat(boundsEl.getAttribute('minlon'));
-                    this.bounds.maxLon = parseFloat(boundsEl.getAttribute('maxlon'));
-                }
-
-                // Parse nodes
-                xmlDoc.querySelectorAll('node').forEach(nodeEl => {
-                    const id = nodeEl.getAttribute('id');
-                    const lat = parseFloat(nodeEl.getAttribute('lat'));
-                    const lon = parseFloat(nodeEl.getAttribute('lon'));
-                    this.nodes.set(id, new Node(id, lon, lat));
-                });
-                
-                // Parse ways and build neighbor connections
-                xmlDoc.querySelectorAll('way').forEach(wayEl => {
-                    const nodeRefs = Array.from(wayEl.querySelectorAll('nd')).map(nd => nd.getAttribute('ref'));
-                    this.ways.push(nodeRefs);
-
-                    for (let i = 0; i < nodeRefs.length - 1; i++) {
-                        const node1 = this.nodes.get(nodeRefs[i]);
-                        const node2 = this.nodes.get(nodeRefs[i + 1]);
-                        if (node1 && node2) {
-                            node1.neighbors.push(node2);
-                            node2.neighbors.push(node1);
-                        }
-                    }
-                });
-            }
-
-            findClosestNode(x, y) {
-                let closestNode = null;
-                let minDistance = Infinity;
-
-                for (const node of this.nodes.values()) {
-                    const distance = Math.sqrt(Math.pow(node.x - x, 2) + Math.pow(node.y - y, 2));
-                    if (distance < minDistance) {
-                        minDistance = distance;
-                        closestNode = node;
-                    }
-                }
-                return closestNode;
-            }
+  buildNameIndex(){
+    this.nameIndex.clear();
+    for (const n of this.nodes.values()){
+      if (n.name){
+        const key = n.name.toLowerCase();
+        if (!this.nameIndex.has(key)) this.nameIndex.set(key, []);
+        this.nameIndex.get(key).push({ type:'node', id:n.id, centroid:{lon:n.x, lat:n.y}, tags:{name:n.name} });
+      }
+    }
+    for (const w of this.ways){
+      if (w.tags && w.tags.name){
+        const key = w.tags.name.toLowerCase();
+        let sx=0, sy=0, c=0;
+        for (const ref of w.nodes){
+          const n = this.nodes.get(ref); if (!n) continue;
+          sx += n.x; sy += n.y; c++;
         }
+        if (c===0) continue;
+        const centroid = { lon: sx/c, lat: sy/c };
+        if (!this.nameIndex.has(key)) this.nameIndex.set(key, []);
+        this.nameIndex.get(key).push({ type:'way', id:w, centroid, tags:w.tags });
+      }
+    }
+  }
 
-        // --- A* Search Algorithm ---
-        function aStarSearch(startNode, endNode) {
-            const openSet = new Set([startNode]);
-            const cameFrom = new Map();
+  findClosestNode(lon, lat){
+    let best=null, bestD=Infinity;
+    for (const n of this.nodes.values()){
+      const d = haversine(lat, lon, n.y, n.x);
+      if (d < bestD){ bestD = d; best = n; }
+    }
+    return best;
+  }
 
-            startNode.g = 0;
-            startNode.h = startNode.distanceTo(endNode);
-            startNode.f = startNode.h;
+  searchLocal(query){
+    const q = query.toLowerCase();
+    const matches = [];
+    for (const [nameKey, entries] of this.nameIndex.entries()){
+      if (nameKey.includes(q)){
+        for (const e of entries) matches.push({ name: nameKey, item: e });
+      }
+    }
+    return matches;
+  }
+}
 
-            while (openSet.size > 0) {
-                let currentNode = null;
-                let lowestF = Infinity;
-                for (const node of openSet) {
-                    if (node.f < lowestF) {
-                        lowestF = node.f;
-                        currentNode = node;
-                    }
-                }
+/* ------------------------------
+   Projection helpers
+   ------------------------------ */
+function getBaseScale(){
+  const b = model.bounds;
+  const spanLon = b.maxLon - b.minLon || 1e-6;
+  const spanLat = b.maxLat - b.minLat || 1e-6;
+  const sx = canvas.width / spanLon;
+  const sy = canvas.height / spanLat;
+  return Math.min(sx, sy);
+}
+function projectToMapSpace(lon, lat){
+  const scale = getBaseScale();
+  return { x:(lon - model.bounds.minLon)*scale, y:(model.bounds.maxLat - lat)*scale };
+}
+function unprojectFromMapSpace(mx, my){
+  const scale = getBaseScale();
+  return { lon:(mx/scale)+model.bounds.minLon, lat:model.bounds.maxLat-(my/scale) };
+}
 
-                if (currentNode === endNode) {
-                    return reconstructPath(cameFrom, currentNode);
-                }
+/* ------------------------------
+   Drawing
+   ------------------------------ */
+function resizeCanvas(){
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  if (model) fitMapToCanvas();
+  draw();
+}
 
-                openSet.delete(currentNode);
+function draw(){
+  // clear
+  ctx.setTransform(1,0,0,1,0,0);
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  if (!model) return;
 
-                for (const neighbor of currentNode.neighbors) {
-                    const tentativeG = currentNode.g + currentNode.distanceTo(neighbor);
-                    if (tentativeG < neighbor.g) {
-                        cameFrom.set(neighbor, currentNode);
-                        neighbor.g = tentativeG;
-                        neighbor.h = neighbor.distanceTo(endNode);
-                        neighbor.f = neighbor.g + neighbor.h;
-                        openSet.add(neighbor);
-                    }
-                }
-            }
-            return []; // No path found
+  // draw map layers with view transform
+  ctx.setTransform(view.scale, 0, 0, view.scale, view.x, view.y);
+
+  // 1) areas (water, parks, buildings)
+  model.ways.forEach(way => {
+    const tags = way.tags || {};
+    const areaColor = (() => {
+      if (tags.natural === 'water' || tags.water === 'lake' || tags.water === 'river') return '#67c0ff';
+      if (tags.landuse === 'forest' || tags.natural === 'wood') return '#9ae6b4';
+      if (tags.landuse === 'park' || tags.leisure === 'park') return '#68d391';
+      if (tags.building) return '#e6e6e6';
+      return null;
+    })();
+    if (!areaColor) return;
+
+    const isClosed = way.nodes.length > 2 && way.nodes[0] === way.nodes[way.nodes.length-1];
+    if (!isClosed && !tags.building && !tags.landuse && !tags.natural) return;
+
+    ctx.beginPath();
+    let cnt = 0;
+    for (const ref of way.nodes){
+      const n = model.nodes.get(ref); if (!n) continue;
+      const p = projectToMapSpace(n.x, n.y);
+      if (cnt===0) ctx.moveTo(p.x,p.y); else ctx.lineTo(p.x,p.y);
+      cnt++;
+    }
+    if (cnt >= 3){
+      ctx.closePath();
+      ctx.fillStyle = areaColor;
+      ctx.globalAlpha = 0.92;
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+  });
+
+  // 2) roads
+  ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+  model.ways.forEach(way=>{
+    if (!way.tags || !way.tags.highway) return;
+    ctx.beginPath();
+    let first = true;
+    for (const ref of way.nodes){
+      const n = model.nodes.get(ref); if (!n) continue;
+      const p = projectToMapSpace(n.x, n.y);
+      if (first){ ctx.moveTo(p.x,p.y); first=false; } else ctx.lineTo(p.x,p.y);
+    }
+    const hw = way.tags.highway || '';
+    let lw = 1.2;
+    if (hw.includes('motorway')) lw = 4;
+    else if (hw.includes('trunk')||hw.includes('primary')) lw = 3;
+    else if (hw.includes('secondary')) lw = 2.5;
+    else if (hw.includes('tertiary')) lw = 2;
+    ctx.strokeStyle = '#c0c0c0';
+    ctx.lineWidth = lw / view.scale;
+    ctx.stroke();
+  });
+
+  // 3) path (A*)
+  if (path.length > 0){
+    ctx.beginPath();
+    const p0 = projectToMapSpace(path[0].x, path[0].y);
+    ctx.moveTo(p0.x, p0.y);
+    for (let i=1;i<path.length;i++){
+      const p = projectToMapSpace(path[i].x, path[i].y);
+      ctx.lineTo(p.x, p.y);
+    }
+    ctx.strokeStyle = '#1a73e8';
+    ctx.lineWidth = 4 / view.scale;
+    ctx.stroke();
+  }
+
+  // 4) pins in map-space
+  if (startNode) drawPinMapSpace(startNode, '#34a853');
+  if (endNode) drawPinMapSpace(endNode, '#ea4335');
+
+  // 5) labels — draw in screen-space (so we can control size & alpha), but anchored to map position
+  ctx.setTransform(1,0,0,1,0,0);
+
+  // Campus centroid (lon/lat center)
+  const lonCenter = (model.bounds.minLon + model.bounds.maxLon) / 2;
+  const latCenter = (model.bounds.minLat + model.bounds.maxLat) / 2;
+  const campusMap = projectToMapSpace(lonCenter, latCenter);
+  const campusScreenX = campusMap.x * view.scale + view.x;
+  const campusScreenY = campusMap.y * view.scale + view.y;
+
+  // campus label: scales with view.scale and fades out when zoomed out
+  const campusBaseFont = 22; // px at scale=1
+  const campusFadeStart = 0.7; // scale where fade begins
+  const campusFadeEnd = 0.25;  // scale where it is fully hidden
+  const s = view.scale;
+  // compute alpha [0..1]
+  let alpha = 1;
+  if (s <= campusFadeEnd) alpha = 0;
+  else if (s < campusFadeStart) alpha = (s - campusFadeEnd) / (campusFadeStart - campusFadeEnd);
+  // font size in screen px = base * scale (so it grows when you zoom in, shrinks when you zoom out)
+  const campusFontPx = Math.max(10, campusBaseFont * s);
+  if (alpha > 0.01) {
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = '#0b1220';
+    ctx.font = `bold ${campusFontPx}px Inter, Arial`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('Indian Institute of Technology Kharagpur', campusScreenX, campusScreenY - (20 * s));
+    ctx.restore();
+  }
+
+  // Road labels: visible at medium zoom
+  const ROADS_LABEL_THRESHOLD = 3.0;
+  if (view.scale >= ROADS_LABEL_THRESHOLD){
+    ctx.save();
+    ctx.fillStyle = '#1f2937';
+    ctx.font = `${12 * Math.min(2, view.scale)}px Inter`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    for (const way of model.ways){
+      if (!way.tags || !way.tags.highway || !way.tags.name) continue;
+      const midIdx = Math.floor(way.nodes.length / 2);
+      const mn = model.nodes.get(way.nodes[midIdx]);
+      if (!mn) continue;
+      const mp = projectToMapSpace(mn.x, mn.y);
+      const sx = mp.x * view.scale + view.x;
+      const sy = mp.y * view.scale + view.y;
+      if (sx < -100 || sx > canvas.width + 100 || sy < -100 || sy > canvas.height + 100) continue;
+      ctx.fillText(way.tags.name, sx, sy);
+    }
+    ctx.restore();
+  }
+
+  // Building labels: visible at high zoom
+  const BUILDING_LABEL_THRESHOLD = 5.0;
+  if (view.scale >= BUILDING_LABEL_THRESHOLD){
+    ctx.save();
+    ctx.fillStyle = '#0b1220';
+    ctx.font = `${8 * Math.min(1.5, view.scale)}px Inter`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    for (const way of model.ways){
+      if (!(way.tags && way.tags.building && way.tags.name)) continue;
+      let sx = 0, sy = 0, c = 0;
+      for (const ref of way.nodes){
+        const n = model.nodes.get(ref); if (!n) continue;
+        const p = projectToMapSpace(n.x, n.y);
+        sx += p.x; sy += p.y; c++;
+      }
+      if (c === 0) continue;
+      const cx = (sx / c) * view.scale + view.x;
+      const cy = (sy / c) * view.scale + view.y;
+      if (cx < -100 || cx > canvas.width + 100 || cy < -100 || cy > canvas.height + 100) continue;
+      ctx.fillText(way.tags.name, cx, cy);
+    }
+    ctx.restore();
+  }
+}
+
+/* draw a pin while map transform is active */
+function drawPinMapSpace(node, color){
+  ctx.beginPath();
+  const p = projectToMapSpace(node.x, node.y);
+  ctx.arc(p.x, p.y, 6 / view.scale, 0, Math.PI*2);
+  ctx.fillStyle = color;
+  ctx.fill();
+  ctx.lineWidth = 2 / view.scale;
+  ctx.strokeStyle = '#fff';
+  ctx.stroke();
+}
+
+/* ------------------------------
+   Fit & animate
+   ------------------------------ */
+function fitMapToCanvas(){
+  if (!model) return;
+  const base = getBaseScale();
+  const maxX = (model.bounds.maxLon - model.bounds.minLon) * base;
+  const maxY = (model.bounds.maxLat - model.bounds.minLat) * base;
+  view.scale = Math.min(canvas.width / maxX, canvas.height / maxY) * 0.9;
+  view.x = canvas.width/2 - (maxX/2) * view.scale;
+  view.y = canvas.height/2 - (maxY/2) * view.scale;
+}
+
+function animateTo(targetX, targetY, targetScale, duration = 600){
+  const start = { x: view.x, y: view.y, scale: view.scale, t: performance.now() };
+  function step(now){
+    const p = Math.min(1, (now - start.t)/duration);
+    const ease = (p<.5) ? 2*p*p : (-1 + (4 - 2*p)*p);
+    view.x = start.x + (targetX - start.x) * ease;
+    view.y = start.y + (targetY - start.y) * ease;
+    view.scale = start.scale + (targetScale - start.scale) * ease;
+    draw();
+    if (p < 1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
+
+/* ------------------------------
+   Pointer pan & wheel zoom
+   ------------------------------ */
+canvas.addEventListener('pointerdown', (e) => {
+  pointerDown = true;
+  pointerMoved = false;
+  pointerStart = { x: e.clientX, y: e.clientY };
+  viewStart = { x: view.x, y: view.y, scale: view.scale };
+  canvas.setPointerCapture(e.pointerId);
+});
+
+canvas.addEventListener('pointermove', (e) => {
+  if (!pointerDown) return;
+  const dx = e.clientX - pointerStart.x;
+  const dy = e.clientY - pointerStart.y;
+  if (Math.hypot(dx, dy) > CLICK_MOVE_THRESHOLD) pointerMoved = true;
+  view.x = viewStart.x + dx;
+  view.y = viewStart.y + dy;
+  draw();
+});
+
+canvas.addEventListener('pointerup', (e) => {
+  pointerDown = false;
+  try { canvas.releasePointerCapture(e.pointerId); } catch (err) {}
+  const dx = e.clientX - pointerStart.x;
+  const dy = e.clientY - pointerStart.y;
+  if (Math.hypot(dx, dy) <= CLICK_MOVE_THRESHOLD) {
+    handleMapClick(e);
+  }
+});
+
+canvas.addEventListener('pointercancel', ()=>{ pointerDown = false; });
+
+canvas.addEventListener('wheel', (e) => {
+  if (!model) return; // require model for meaningful zoom
+  e.preventDefault();
+  const rect = canvas.getBoundingClientRect();
+  const mx = e.clientX - rect.left;
+  const my = e.clientY - rect.top;
+  const mapX = (mx - view.x) / view.scale;
+  const mapY = (my - view.y) / view.scale;
+  const scaleFactor = e.deltaY < 0 ? 1.12 : 1/1.12;
+  const newScale = view.scale * scaleFactor;
+  if (newScale < 0.03 || newScale > 400) return;
+  view.scale = newScale;
+  // keep zoom centered
+  view.x = mx - mapX * view.scale;
+  view.y = my - mapY * view.scale;
+  draw();
+}, { passive:false });
+
+canvas.addEventListener('dblclick', (e) => {
+  if (!model) return;
+  const rect = canvas.getBoundingClientRect();
+  const mx = e.clientX - rect.left;
+  const my = e.clientY - rect.top;
+  const mapX = (mx - view.x) / view.scale;
+  const mapY = (my - view.y) / view.scale;
+  const targetScale = Math.min(view.scale * 1.8, 400);
+  const targetX = mx - mapX * targetScale;
+  const targetY = my - mapY * targetScale;
+  animateTo(targetX, targetY, targetScale, 300);
+});
+
+/* ------------------------------
+   Map click handler: select start/end and run A*
+   ------------------------------ */
+function handleMapClick(e){
+  if (!model) return;
+  const rect = canvas.getBoundingClientRect();
+  const sx = e.clientX - rect.left;
+  const sy = e.clientY - rect.top;
+  const mapX = (sx - view.x) / view.scale;
+  const mapY = (sy - view.y) / view.scale;
+  const { lon, lat } = unprojectFromMapSpace(mapX, mapY);
+  const clicked = model.findClosestNode(lon, lat);
+  if (!clicked) return;
+  if (!startNode) {
+    startNode = clicked;
+    statusEl.textContent = 'Start set. Click to set end point.';
+  } else if (!endNode) {
+    endNode = clicked;
+    statusEl.textContent = 'Searching...';
+    setTimeout(()=>{
+      path = aStarSearch(startNode, endNode);
+      if (path.length > 0){
+        let meters = 0; for (let i=1;i<path.length;i++) meters += path[i-1].distanceTo(path[i]);
+        distanceEl.textContent = meters.toFixed(1); resultsEl.style.display='block';
+        statusEl.textContent = 'Route found!';
+      } else statusEl.textContent = 'No route found.';
+      draw();
+    }, 10);
+  } else {
+    startNode = clicked; endNode = null; path = []; resultsEl.style.display='none';
+    statusEl.textContent = 'Start set. Click to set end point.';
+  }
+  draw();
+}
+
+/* ------------------------------
+   A* search
+   ------------------------------ */
+function aStarSearch(start, goal){
+  for (const n of model.nodes.values()) n.reset();
+  const open = new Set();
+  start.g = 0; start.h = start.distanceTo(goal); start.f = start.h; open.add(start);
+  while (open.size){
+    let current = null, minF = Infinity;
+    for (const n of open) if (n.f < minF){ minF = n.f; current = n; }
+    if (!current) break;
+    if (current === goal) return reconstruct(goal);
+    open.delete(current);
+    for (const nb of current.neighbors){
+      const tentative = current.g + current.distanceTo(nb);
+      if (tentative < nb.g){
+        nb.parent = current; nb.g = tentative; nb.h = nb.distanceTo(goal); nb.f = nb.g + nb.h; open.add(nb);
+      }
+    }
+  }
+  return [];
+}
+function reconstruct(goal){
+  const out = []; let cur = goal;
+  while (cur){ out.unshift(cur); cur = cur.parent; }
+  return out;
+}
+
+/* ------------------------------
+   Search: local & remote
+   ------------------------------ */
+function openSearchPopup(){
+  searchPopup.style.display='block';
+  localResultsEl.innerHTML = ''; remoteResultsEl.innerHTML = '';
+}
+function closeSearchPopup(){ searchPopup.style.display='none'; }
+
+searchBtn.addEventListener('click', () => doSearch(searchInput.value.trim()));
+searchInput.addEventListener('keydown', (e)=>{ if (e.key==='Enter') doSearch(searchInput.value.trim()); });
+closeSearch.addEventListener('click', closeSearchPopup);
+
+function doSearch(query){
+  if (!query) return;
+  if (!model){ alert('Load an OSM file first for local search. Remote search still works.'); }
+  openSearchPopup();
+  localResultsEl.innerHTML = ''; remoteResultsEl.innerHTML = '';
+  // local
+  if (model){
+    const local = model.searchLocal(query);
+    if (local.length){
+      local.forEach(entry=>{
+        const div = document.createElement('div');
+        div.className='resultItem';
+        const name = (entry.item.tags && entry.item.tags.name) || (entry.item.name) || query;
+        div.innerHTML = `<strong>${name}</strong> <div style="font-size:12px;color:#475569">${entry.type}</div>`;
+        div.onclick = ()=>{ // zoom to centroid
+          const lon = (entry.item.centroid || entry.item.centroid).lon;
+          const lat = (entry.item.centroid || entry.item.centroid).lat;
+          const p = projectToMapSpace(lon, lat);
+          const base = getBaseScale();
+          const factor = 8; // campus extracts: larger factor
+          const targetScale = Math.min(canvas.width / ((model.bounds.maxLon-model.bounds.minLon) * base), canvas.height / ((model.bounds.maxLat-model.bounds.minLat) * base)) * factor;
+          const targetX = canvas.width/2 - p.x * targetScale;
+          const targetY = canvas.height/2 - p.y * targetScale;
+          animateTo(targetX, targetY, targetScale, 600);
+          closeSearchPopup();
+        };
+        localResultsEl.appendChild(div);
+      });
+    } else localResultsEl.innerHTML = '<div style="padding:8px;color:#64748b">No local matches found.</div>';
+  } else localResultsEl.innerHTML = '<div style="padding:8px;color:#64748b">Load .osm to enable local search.</div>';
+
+  // remote Nominatim
+  remoteResultsEl.innerHTML = '<div style="padding:8px;color:#64748b">Searching remote...</div>';
+  fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&addressdetails=0&limit=6`, {
+    headers: { 'Accept': 'application/json' }
+  }).then(r=>r.json()).then(arr=>{
+    remoteResultsEl.innerHTML = '';
+    if (!arr.length){ remoteResultsEl.innerHTML = '<div style="padding:8px;color:#64748b">No remote results.</div>'; return; }
+    arr.forEach(place=>{
+      const div = document.createElement('div');
+      div.className='resultItem';
+      div.innerHTML = `<strong>${place.display_name}</strong><div style="font-size:12px;color:#475569">${place.type} • ${place.lat}, ${place.lon}</div>`;
+      div.onclick = ()=>{
+        const lon = parseFloat(place.lon), lat = parseFloat(place.lat);
+        if (model){
+          const p = projectToMapSpace(lon, lat);
+          const base = getBaseScale();
+          const targetScale = Math.min(canvas.width / ((model.bounds.maxLon-model.bounds.minLon) * base), canvas.height / ((model.bounds.maxLat-model.bounds.minLat) * base)) * 12;
+          const targetX = canvas.width/2 - p.x * targetScale;
+          const targetY = canvas.height/2 - p.y * targetScale;
+          animateTo(targetX, targetY, targetScale, 800);
+        } else {
+          view.x = canvas.width/2; view.y = canvas.height/2; view.scale = 1; draw();
         }
+        closeSearchPopup();
+      };
+      remoteResultsEl.appendChild(div);
+    });
+  }).catch(err=>{
+    remoteResultsEl.innerHTML = '<div style="padding:8px;color:#f43f5e">Remote search failed.</div>';
+    console.error('Nominatim error', err);
+  });
+}
 
-        function reconstructPath(cameFrom, current) {
-            const totalPath = [current];
-            while (cameFrom.has(current)) {
-                current = cameFrom.get(current);
-                totalPath.unshift(current);
-            }
-            return totalPath;
-        }
+/* ------------------------------
+   File upload / default / reset
+   ------------------------------ */
+fileUpload.addEventListener('change', e=>{
+  const file = e.target.files[0];
+  if (!file) return;
+  statusEl.textContent = 'Loading & parsing OSM...';
+  const reader = new FileReader();
+  reader.onload = ev=>{
+    try {
+      model = new RouteModel(ev.target.result);
+      fitMapToCanvas();
+      startNode = endNode = null; path = [];
+      resultsEl.style.display='none';
+      statusEl.textContent = 'Map loaded. Click to set start point.';
+      draw();
+    } catch (err) {
+      console.error(err);
+      statusEl.textContent = 'Error parsing OSM file.';
+      alert('Error parsing OSM: see console.');
+    }
+  };
+  reader.readAsText(file);
+});
 
-        // --- Canvas Drawing ---
-        function resizeCanvas() {
-            const container = canvas.parentElement;
-            const size = Math.min(container.clientWidth, container.clientHeight) * 0.95;
-            canvas.width = size;
-            canvas.height = size;
-            draw();
-        }
+btnLoadDefault.addEventListener('click', ()=>{
+  fetch('map.osm').then(r=>r.text()).then(txt=>{
+    model = new RouteModel(txt);
+    fitMapToCanvas();
+    startNode = endNode = null; path=[];
+    resultsEl.style.display='none';
+    statusEl.textContent = 'Default map loaded.';
+    draw();
+  }).catch(err=>{
+    console.error(err);
+    alert('Could not load map.osm from same folder. Use Upload to select a file.');
+  });
+});
 
-        function project(lon, lat) {
-            const scale = Math.min(canvas.width / (model.bounds.maxLon - model.bounds.minLon), canvas.height / (model.bounds.maxLat - model.bounds.minLat));
-            const x = (lon - model.bounds.minLon) * scale;
-            const y = (model.bounds.maxLat - lat) * scale; // Invert Y-axis
-            return { x, y };
-        }
+resetButton.addEventListener('click', ()=>{
+  startNode = endNode = null; path = []; resultsEl.style.display='none'; statusEl.textContent='Reset.';
+  if (model) fitMapToCanvas();
+  draw();
+});
 
-        function unproject(x, y) {
-             const scale = Math.min(canvas.width / (model.bounds.maxLon - model.bounds.minLon), canvas.height / (model.bounds.maxLat - model.bounds.minLat));
-             const lon = (x / scale) + model.bounds.minLon;
-             const lat = model.bounds.maxLat - (y / scale);
-             return { lon, lat };
-        }
+/* ------------------------------
+   Utility helpers
+   ------------------------------ */
+function projectLonLatToMapSpace(lon, lat){ return projectToMapSpace(lon, lat); }
 
-        function draw() {
-            if (!model) return;
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.save();
-            ctx.translate(transform.x, transform.y);
-            ctx.scale(transform.scale, transform.scale);
-
-            // Draw ways
-            ctx.strokeStyle = '#a0aec0'; // gray-500
-            ctx.lineWidth = 1 / transform.scale;
-            ctx.beginPath();
-            model.ways.forEach(way => {
-                const startNode = model.nodes.get(way[0]);
-                if (!startNode) return;
-                const pStart = project(startNode.x, startNode.y);
-                ctx.moveTo(pStart.x, pStart.y);
-                for (let i = 1; i < way.length; i++) {
-                    const node = model.nodes.get(way[i]);
-                    if (!node) continue;
-                    const p = project(node.x, node.y);
-                    ctx.lineTo(p.x, p.y);
-                }
-            });
-            ctx.stroke();
-
-            // Draw path
-            if (path.length > 0) {
-                ctx.strokeStyle = '#e53e3e'; // red-600
-                ctx.lineWidth = 4 / transform.scale;
-                ctx.beginPath();
-                const pStart = project(path[0].x, path[0].y);
-                ctx.moveTo(pStart.x, pStart.y);
-                for (let i = 1; i < path.length; i++) {
-                    const p = project(path[i].x, path[i].y);
-                    ctx.lineTo(p.x, p.y);
-                }
-                ctx.stroke();
-            }
-
-            // Draw start and end points
-            if (startPoint) drawPoint(startPoint, '#38a169'); // green-600
-            if (endPoint) drawPoint(endPoint, '#3182ce'); // blue-600
-
-            ctx.restore();
-        }
-        
-        function drawPoint(point, color) {
-            const p = project(point.x, point.y);
-            ctx.fillStyle = color;
-            ctx.beginPath();
-            ctx.arc(p.x, p.y, 6 / transform.scale, 0, 2 * Math.PI);
-            ctx.fill();
-        }
-
-        // --- Event Handlers ---
-        fileUpload.addEventListener('change', (event) => {
-            const file = event.target.files[0];
-            if (!file) return;
-
-            loadingEl.classList.remove('hidden');
-            statusEl.textContent = 'Loading and parsing map...';
-            resultsEl.classList.add('hidden');
-
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                setTimeout(() => { // Give browser time to show loader
-                    try {
-                        model = new RouteModel(e.target.result);
-                        resetState();
-                        updateInstructionStep(1, true);
-                        updateInstructionStep(2, false);
-                        statusEl.textContent = 'Map loaded. Click to set start point.';
-                    } catch (error) {
-                        console.error("Error parsing OSM file:", error);
-                        statusEl.textContent = 'Error: Could not parse map file.';
-                        model = null;
-                    } finally {
-                        loadingEl.classList.add('hidden');
-                        draw();
-                    }
-                }, 50);
-            };
-            reader.readAsText(file);
-        });
-
-        resetButton.addEventListener('click', () => {
-            resetState();
-            if (model) {
-                statusEl.textContent = 'Map loaded. Click to set start point.';
-            } else {
-                statusEl.textContent = 'Load a map file to begin.';
-            }
-            draw();
-        });
-
-        canvas.addEventListener('mousedown', (e) => {
-            if (e.button === 1) { // Middle mouse button
-                isPanning = true;
-                panStart = { x: e.clientX, y: e.clientY };
-                canvas.style.cursor = 'grabbing';
-                e.preventDefault();
-            }
-        });
-        
-        canvas.addEventListener('mousemove', (e) => {
-            if (isPanning) {
-                const dx = e.clientX - panStart.x;
-                const dy = e.clientY - panStart.y;
-                transform.x += dx;
-                transform.y += dy;
-                panStart = { x: e.clientX, y: e.clientY };
-                draw();
-            }
-        });
-
-        canvas.addEventListener('mouseup', (e) => {
-            if (e.button === 1) {
-                isPanning = false;
-                canvas.style.cursor = 'crosshair';
-            }
-        });
-        
-        canvas.addEventListener('mouseleave', () => {
-             isPanning = false;
-             canvas.style.cursor = 'crosshair';
-        });
-
-        canvas.addEventListener('wheel', (e) => {
-            e.preventDefault();
-            const rect = canvas.getBoundingClientRect();
-            const mouseX = e.clientX - rect.left;
-            const mouseY = e.clientY - rect.top;
-            
-            const scaleFactor = e.deltaY < 0 ? 1.1 : 0.9;
-            
-            transform.x = mouseX - (mouseX - transform.x) * scaleFactor;
-            transform.y = mouseY - (mouseY - transform.y) * scaleFactor;
-            transform.scale *= scaleFactor;
-            
-            draw();
-        });
-
-        canvas.addEventListener('click', (e) => {
-            if (!model) return;
-
-            const rect = canvas.getBoundingClientRect();
-            const canvasX = (e.clientX - rect.left - transform.x) / transform.scale;
-            const canvasY = (e.clientY - rect.top - transform.y) / transform.scale;
-
-            const { lon, lat } = unproject(canvasX, canvasY);
-            const clickedNode = model.findClosestNode(lon, lat);
-
-            if (!startPoint) {
-                startPoint = clickedNode;
-                updateInstructionStep(2, true);
-                updateInstructionStep(3, false);
-                statusEl.textContent = 'Start point set. Click to set end point.';
-            } else if (!endPoint) {
-                endPoint = clickedNode;
-                updateInstructionStep(3, true);
-                statusEl.textContent = 'Calculating shortest path...';
-                
-                // Reset g/h/f values before new search
-                model.nodes.forEach(node => {
-                    node.g = Infinity;
-                    node.h = 0;
-                    node.f = Infinity;
-                });
-
-                setTimeout(() => { // Allow UI to update
-                    path = aStarSearch(startPoint, endPoint);
-                    if (path.length > 0) {
-                        statusEl.textContent = 'Shortest path found!';
-                        const totalDistance = calculatePathDistance(path);
-                        distanceEl.textContent = totalDistance.toFixed(2);
-                        resultsEl.classList.remove('hidden');
-                    } else {
-                        statusEl.textContent = 'Could not find a path between the points.';
-                    }
-                    draw();
-                }, 50);
-            }
-            draw();
-        });
-
-        // --- Utility Functions ---
-        function resetState() {
-            startPoint = null;
-            endPoint = null;
-            path = [];
-            resultsEl.classList.add('hidden');
-            instructionSteps.forEach((step, index) => {
-                updateInstructionStep(index + 1, false);
-            });
-            if (model) updateInstructionStep(1, true);
-        }
-        
-        function updateInstructionStep(step, isComplete) {
-            const stepEl = instructionSteps[step - 1];
-            if (!stepEl) return;
-            const circleEl = stepEl.querySelector('div:first-child');
-            if (isComplete) {
-                circleEl.classList.remove('bg-gray-600');
-                circleEl.classList.add('bg-green-600');
-                circleEl.innerHTML = '&#10003;'; // Checkmark
-            } else {
-                circleEl.classList.remove('bg-green-600');
-                circleEl.classList.add('bg-gray-600');
-                circleEl.textContent = step;
-            }
-        }
-
-        function calculatePathDistance(path) {
-            let totalDistance = 0;
-            for (let i = 0; i < path.length - 1; i++) {
-                // Using Haversine formula for distance between lat/lon points
-                totalDistance += haversineDistance(path[i], path[i+1]);
-            }
-            return totalDistance;
-        }
-
-        function haversineDistance(node1, node2) {
-            const R = 6371e3; // Earth's radius in metres
-            const φ1 = node1.y * Math.PI/180;
-            const φ2 = node2.y * Math.PI/180;
-            const Δφ = (node2.y-node1.y) * Math.PI/180;
-            const Δλ = (node2.x-node1.x) * Math.PI/180;
-
-            const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
-                      Math.cos(φ1) * Math.cos(φ2) *
-                      Math.sin(Δλ/2) * Math.sin(Δλ/2);
-            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-
-            return R * c; // in metres
-        }
-
-        // --- Initial Setup ---
-        window.addEventListener('resize', resizeCanvas);
-        resizeCanvas();
-        statusEl.textContent = 'Load a map file to begin.';
-
-    </script>
+/* ------------------------------
+   Init
+   ------------------------------ */
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+statusEl.textContent = 'Load a map file to begin.';
+</script>
 </body>
 </html>
