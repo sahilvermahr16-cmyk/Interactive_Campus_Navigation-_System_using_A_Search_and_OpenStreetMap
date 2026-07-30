@@ -246,5 +246,5 @@ This project is intended for educational and learning purposes.
 
 **Sahil Verma**
 
-- GitHub: https://github.com/your-username
-- LinkedIn: https://linkedin.com/in/your-profile
+- GitHub: https://github.com/sahilvermahr16-cmyk
+- LinkedIn: https://www.linkedin.com/in/sahil-verma-990001319/
