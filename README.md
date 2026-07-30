@@ -1,114 +1,99 @@
 # 🗺️ Interactive Campus Navigation System using A* Search and OpenStreetMap
 
-An interactive web-based campus navigation system that visualizes OpenStreetMap (OSM) data, enables users to search locations, select source and destination points, and computes the shortest route using the **A\* Search Algorithm**. The application is built using **HTML5 Canvas**, **JavaScript**, and **OpenStreetMap**, providing an intuitive and responsive map exploration experience.
+An interactive web-based campus navigation system that visualizes **OpenStreetMap (OSM)** data, enables users to search locations, select source and destination points, and computes the shortest route using the **A* Search Algorithm**. Built with **HTML5 Canvas**, **JavaScript**, and **Tailwind CSS**, the project demonstrates how graph algorithms can be applied to solve real-world navigation problems.
 
 ---
 
-## 📌 Project Overview
+## 🎥 Demo
 
-Finding the shortest path inside a large campus can be challenging, especially for new students and visitors. This project provides a smart navigation system that allows users to:
-
-- Load OpenStreetMap (.osm) files
-- Visualize campus roads, buildings, parks, and water bodies
-- Search locations locally and online
-- Select start and destination points
-- Compute the shortest route using the A* Search Algorithm
-- Display the total travel distance
-- Navigate through the map using zoom and pan controls
+<p align="center">
+  <img src="demo.gif" alt="Project Demo" width="900">
+</p>
 
 ---
 
-# 🚀 Features
+## 📸 Home Page
 
-### 🗺️ Interactive Map Visualization
-- Render OpenStreetMap (.osm) data on HTML5 Canvas
-- Display roads, buildings, parks, and water bodies
-- Dynamic map rendering with smooth interactions
+<p align="center">
+  <img src="home.png" alt="Home Page" width="900">
+</p>
 
-### 📂 OSM File Loader
-- Upload any custom `.osm` file
-- Load a default map instantly
+---
 
-### 📍 Smart Location Search
-- Local search using loaded OSM data
-- Online search using OpenStreetMap Nominatim API
+## 🌐 Live Demo
 
-### 🧭 Shortest Path Navigation
-- Select start and destination nodes
-- Compute shortest path using A* Search
-- Display shortest route visually on the map
+> **GitHub Pages:** https://your-username.github.io/Interactive-Campus-Navigation-System/
 
-### 📏 Distance Calculation
-- Calculates total route distance
-- Uses the Haversine Formula for accurate geographic distance
+*(Replace `your-username` with your GitHub username after deployment.)*
 
-### 🔍 Interactive Controls
-- Mouse wheel zoom
-- Drag to pan
-- Double-click to zoom
-- Reset map view
+---
 
-### 📌 Dynamic Labels
-- Campus name
-- Building names
-- Road names
-- Labels appear according to zoom level
+# 📌 Project Overview
+
+This project provides an interactive navigation system that allows users to explore a campus map, search locations, and compute the shortest route between two points using the **A* Search Algorithm**.
+
+The application parses OpenStreetMap (.osm) files, builds a graph representation of the road network, and visualizes the map using HTML5 Canvas. Users can interact with the map through zooming, panning, searching, and route generation.
+
+---
+
+# ✨ Features
+
+* 🗺️ Interactive OpenStreetMap visualization
+* 📂 Upload custom `.osm` files
+* 🔍 Local location search
+* 🌍 Online search using OpenStreetMap Nominatim API
+* 📍 Select source and destination points
+* 🧭 Shortest path computation using A* Search
+* 📏 Route distance calculation using the Haversine Formula
+* 🔎 Smooth zoom and pan functionality
+* 🏢 Dynamic rendering of buildings, roads, parks, and water bodies
+* 📍 Automatic nearest-node detection for accurate routing
 
 ---
 
 # 🛠️ Tech Stack
 
-## Frontend
-- HTML5
-- CSS3
-- JavaScript (ES6)
-- Tailwind CSS
-- HTML5 Canvas API
+### Frontend
 
-## Data Source
-- OpenStreetMap (.osm)
+* HTML5
+* CSS3
+* JavaScript (ES6)
+* Tailwind CSS
+* HTML5 Canvas API
 
-## APIs
-- OpenStreetMap Nominatim API
+### Data Source
+
+* OpenStreetMap (OSM)
+
+### APIs
+
+* OpenStreetMap Nominatim API
 
 ---
 
 # 🧠 Algorithms Used
 
-## A* Search Algorithm
-Used to compute the shortest path between the selected source and destination nodes.
+### A* Search Algorithm
 
-### Why A*?
-- Fast shortest path computation
-- Uses heuristic-based search
-- More efficient than Dijkstra for point-to-point navigation
+Computes the shortest path between the selected source and destination nodes using heuristic-based graph search.
 
----
+### Haversine Formula
 
-## Haversine Distance Formula
+Calculates the geographical distance between two latitude-longitude coordinates for route distance estimation.
 
-Used to calculate the geographical distance between two latitude-longitude coordinates.
+### Nearest Node Search
 
-Applications:
-- Edge cost calculation
-- Route distance measurement
-- A* heuristic estimation
-
----
-
-## Nearest Node Search
-
-Converts the user-selected location into the nearest graph node before running the A* algorithm.
+Finds the closest graph node corresponding to the selected location before executing the A* algorithm.
 
 ---
 
 # 📂 Data Structures Used
 
-- Graph (Adjacency List)
-- Map
-- Set
-- Arrays
-- Objects
+* Graph (Adjacency List)
+* Map
+* Set
+* Arrays
+* Objects
 
 ---
 
@@ -124,7 +109,7 @@ Parse XML Data
 Build Graph
         │
         ▼
-Render Map
+Render Interactive Map
         │
         ▼
 Search / Select Locations
@@ -139,106 +124,93 @@ Run A* Search
 Display Shortest Path
         │
         ▼
-Calculate Total Distance
+Calculate Route Distance
 ```
 
 ---
 
-# 📁 Project Structure
+# 📁 Repository Structure
 
 ```
 Interactive-Campus-Navigation-System/
 │
-├── index.html          # Main application
-├── map.osm             # Default OpenStreetMap file
-├── README.md
+├── index.html
+├── map.osm
+├── demo.gif
+├── home.png
+└── README.md
 ```
 
 ---
 
-# ▶️ Getting Started
+# 🚀 Getting Started
 
-## Clone Repository
+### Clone the Repository
 
 ```bash
 git clone https://github.com/your-username/Interactive-Campus-Navigation-System.git
 ```
 
-## Open Project
+### Run the Project
 
-Simply open:
+Open `index.html` in your browser.
 
-```
-index.html
-```
-
-in your browser.
-
-Or use **Live Server** in Visual Studio Code for the best experience.
+For the best experience, run the project using the **Live Server** extension in Visual Studio Code.
 
 ---
 
-# 🎯 How to Use
+# 📖 How to Use
 
 1. Open the application.
 2. Load the default map or upload your own `.osm` file.
 3. Search for a location or click directly on the map.
-4. Select the **start point**.
-5. Select the **destination**.
-6. The application computes and displays the shortest route.
-7. View the total distance traveled.
+4. Select the **Start** point.
+5. Select the **Destination** point.
+6. The application computes the shortest route using the A* Search Algorithm.
+7. View the generated route and total travel distance.
 
 ---
 
-# 💡 Key Learning Outcomes
+# 📚 What I Learned
 
-Through this project, I gained practical experience in:
+During this project, I gained practical experience in:
 
-- Graph data structures
-- A* Search Algorithm
-- Pathfinding algorithms
-- Geographic coordinate systems
-- OpenStreetMap data parsing
-- XML processing
-- HTML5 Canvas rendering
-- JavaScript event handling
-- API integration
-- Interactive UI development
+* Graph data structures
+* A* Search Algorithm
+* Geographic coordinate systems
+* OpenStreetMap data parsing
+* XML processing
+* HTML5 Canvas rendering
+* JavaScript event handling
+* API integration
+* Interactive web application development
 
 ---
 
 # 🔮 Future Improvements
 
-- Priority Queue implementation for faster A* search
-- KD-Tree / Quadtree for efficient nearest node lookup
-- Turn-by-turn navigation
-- Multiple route alternatives
-- Traffic-aware routing
-- User location tracking
-- Mobile responsiveness
-- Dark mode support
+* Binary Heap based Priority Queue for faster A* execution
+* KD-Tree / Quadtree for efficient nearest-node lookup
+* Turn-by-turn navigation
+* Multiple route suggestions
+* Traffic-aware path planning
+* User location support
+* Improved mobile responsiveness
+* Dark mode
 
 ---
 
-# 📸 Screenshots
+# 🤝 Contributing
 
-> Add screenshots or GIFs here.
+Contributions, suggestions, and improvements are welcome.
 
-```
-Home Screen
-
-Map Visualization
-
-Shortest Path
-
-Search Feature
-```
+If you find a bug or have an idea to improve the project, feel free to open an Issue or submit a Pull Request.
 
 ---
 
 # 📄 License
 
-This project is intended for educational and learning purposes.
+This project is developed for educational and learning purposes.
 
 ---
 
@@ -246,5 +218,5 @@ This project is intended for educational and learning purposes.
 
 **Sahil Verma**
 
-- GitHub: https://github.com/sahilvermahr16-cmyk
-- LinkedIn: https://www.linkedin.com/in/sahil-verma-990001319/
+* GitHub: https://github.com/sahilvermahr16-cmyk
+* LinkedIn: https://www.linkedin.com/in/sahil-verma-990001319/
