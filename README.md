@@ -150,7 +150,7 @@ Calculate Total Distance
 Interactive-Campus-Navigation-System/
 │
 ├── index.html          # Main application
-├── iitkgp_map.osm      # Default OpenStreetMap file
+├── map.osm             # Default OpenStreetMap file
 ├── README.md
 ```
 
