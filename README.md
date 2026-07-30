@@ -7,7 +7,7 @@ An interactive web-based campus navigation system that visualizes **OpenStreetMa
 ## 🎥 Demo
 
 <p align="center">
-  <img src="demo.gif" alt="Project Demo" width="900">
+  <img src="Demo_Sortest_Path.gif" alt="Project Demo" width="900">
 </p>
 
 ---
@@ -15,16 +15,14 @@ An interactive web-based campus navigation system that visualizes **OpenStreetMa
 ## 📸 Home Page
 
 <p align="center">
-  <img src="home.png" alt="Home Page" width="900">
+  <img src="home_sortest_path.png" alt="Home Page" width="900">
 </p>
 
 ---
 
 ## 🌐 Live Demo
 
-> **GitHub Pages:** https://your-username.github.io/Interactive-Campus-Navigation-System/
-
-*(Replace `your-username` with your GitHub username after deployment.)*
+> **GitHub Pages:** https://sahilvermahr16-cmyk.github.io/Interactive_Campus_Navigation-_System_using_A_Search_and_OpenStreetMap/
 
 ---
 
